@@ -1,0 +1,148 @@
+/* src/components/Chat.css */
+.chat-container {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 360px;
+    height: 500px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    transition: opacity 0.3s, visibility 0.3s;
+  }
+
+  .chat-container.hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+  
+  .chat-container.visible {
+    opacity: 1;
+    visibility: visible;
+  }  
+  
+  .chat-content {
+    display: flex;
+    flex-direction: column;
+    border-radius: 8px;
+    height: 100%;
+  }
+  
+  .chat-header {
+    background-color: #005090;
+    color: white;
+    padding: 10px;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding: 18px 15px;
+    height: fit-content;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  .messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px;
+    background: #ffffff;
+  }
+  
+  .message-wrapper {
+    display: flex;
+    align-items: flex-end;
+    margin: 5px 0;
+    padding-bottom: 8px;
+  }
+  
+  /* Align Bot Messages to the Left */
+  .message-wrapper.bot {
+    justify-content: flex-start;
+  }
+  
+  /* Align User Messages to the Right */
+  .message-wrapper.user {
+    justify-content: flex-end;
+    margin-right: 10px;
+  }
+  
+  /* Avatar Styling */
+  .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 4px;
+  }
+  
+  /* Message Bubbles */
+  .message {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 20px;
+    position: relative;
+  }
+  
+  /* User Message Style */
+  .message.user {
+    background-color: #005090;
+    color: white;
+    border-radius: 20px 20px 0 20px;
+  }
+  
+  /* Bot Message Style */
+  .message.bot {
+    background-color: #f1f1f1;
+    color: black;
+    border-radius: 20px 20px 20px 0;
+  }
+  
+  .input-form {
+    display: flex;
+    padding: 12px;
+    background: white;
+    border-top: 1px solid #ddd;
+  }
+  
+  input {
+    flex-grow: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+  }
+  
+  button {
+    padding: 10px 15px;
+    background: #005090;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  
+  button:disabled {
+    background: #cccccc;
+  }
+  
+  .loading {
+    text-align: center;
+    color: #666;
+    font-style: italic;
+  }
+  
+  .chat-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #005090;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  
+  .chat-toggle.open {
+    transform: scale(1);
+  }  

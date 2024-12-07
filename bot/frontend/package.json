@@ -1,0 +1,17 @@
+{
+    "name": "chatbot",
+    "version": "1.0.0",
+    "dependencies": {
+        "lucide-react": "^0.468.0",
+        "react": "^18.0.0",
+        "react-dom": "^18.0.0"
+    },
+    "proxy": "http://localhost:8000",
+    "scripts": {
+        "start": "vite"
+    },
+    "devDependencies": {
+        "@vitejs/plugin-react": "^4.3.4",
+        "vite": "^4.5.5"
+    }
+}
