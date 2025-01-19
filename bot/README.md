@@ -37,7 +37,7 @@ npm install
 From project root directory, run:
 ```bash
 export AUTOGEN_USE_DOCKER=False
-uvicorn backend.app:app --reload --port 800
+uvicorn backend.app:app --reload --port 8000
 ```
 
 ### Frontend

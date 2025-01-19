@@ -46,31 +46,36 @@ class AgentSystem:
         self.user_proxy = autogen.UserProxyAgent(
             name="user_proxy",
             human_input_mode="NEVER",  # Disable manual human input
-            max_consecutive_auto_reply=0,
+            max_consecutive_auto_reply=10,  # Allow more back-and-forth
             is_termination_msg=lambda x: isinstance(x, str) and "FINAL ANSWER:" in x.upper(),
         )
         
     async def get_response(self, user_message: str) -> str:
         try:
             # Reset chat messages to ensure a clean conversation
-            if self.user_proxy.chat_messages:
+            if hasattr(self.user_proxy, 'chat_messages') and self.user_proxy.chat_messages:
                 self.user_proxy.chat_messages.clear()
 
+            # Create a group chat for collaboration
+            groupchat = autogen.GroupChat(
+                agents=[self.solar_advisor, self.financial_expert, self.policy_expert, self.user_proxy],
+                messages=[],
+                max_round=10
+            )
+            
+            manager = autogen.GroupChatManager(groupchat=groupchat)
+
             # Initialize the chat with the user query
-            self.user_proxy.initiate_chat(
-                self.solar_advisor,
+            await self.user_proxy.a_initiate_chat(
+                manager,
                 message=f"""Process this user query: {user_message}
-                If research is needed, collaborate with the financial expert and policy expert."""
+                Collaborate to provide the most comprehensive answer."""
             )
 
-            # Give some time for the agents to process
-            import asyncio
-            await asyncio.sleep(2)
-
             # Retrieve chat history
-            chat_history = self.user_proxy.chat_messages.get(self.solar_advisor, [])
+            chat_history = self.user_proxy.chat_messages.get(manager, [])
             if not chat_history:
-                return "No response from solar advisor."
+                return "No response generated yet."
 
             # Find the last message containing the final answer
             for message in reversed(chat_history):
@@ -80,7 +85,11 @@ class AgentSystem:
                     response = last_message.split("FINAL ANSWER:")[-1].strip()
                     return response
 
-            return "I don't know the answer to this yet."
+            # If no final answer is found, return the last message
+            if chat_history:
+                return chat_history[-1].get("content", "Still processing the request...")
+
+            return "No response was generated."
 
         except Exception as e:
             return f"Error processing your request: {str(e)}"
