@@ -1,5 +1,11 @@
 # Steps to Integrate the Chatbot Widget
 
+Please rerun these steps after every bot update to make sure changes are reflected in the main app.
+
+## Build the Widget
+1. Navigate to the `bot/frontend` directory
+2. Run `npm run build`
+
 ## Copy the Build to Main App
 Mac/Linux
 ```
