@@ -27,13 +27,14 @@ async def chat_endpoint(request: ChatRequest):
     try:
         # Get response from agent system
         response = await agent_system.get_response(request.message)
+        print(f"Response: {response}")
         
-        return {
-            "response": response
-        }
+        # Return the response as expected by the frontend
+        return response
     except Exception as e:
         return {
-            "response": f"An error occurred: {str(e)}"
+            "text": f"An error occurred: {str(e)}",
+            "sections": []
         }
 
 # # For running the server
