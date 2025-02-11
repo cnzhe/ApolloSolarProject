@@ -1,93 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { MessageCircle, Send, X } from 'lucide-react';
 import './Chat.css';
 import botAvatar from '../assets/launcher-logo.png';
 
-const ChatMessage = ({ message }) => {
+const ChatMessage = ({ message, onQuickReplyClick, messageIndex }) => {
   if (message.sender === 'user') {
     return <div className="message user">{message.text}</div>;
   }
 
-  // For bot messages with the new structure
-  const { summary, details } = message;
-  
   return (
     <div className="message bot">
-      {/* Summary Section */}
       <div className="summary-section">
-        {/* <h3 className="font-bold mb-2">Summary</h3> */}
-        <p className="mb-2">{summary.text}</p>
-        <br /> {/* Empty line */}
-        {summary.actions && summary.actions.length > 0 && (
-          <>
-            <h4 className="font-semibold mt-2">Recommended Next Steps:</h4>
-            <ul>
-              {summary.actions.map((action, idx) => (
-                <li key={idx}>{action}</li>
-              ))}
-            </ul>
-          </>
+        <ReactMarkdown>{message.summary.text}</ReactMarkdown>
+
+        {message.summary.quick_replies?.length > 0 && (
+          <div className="quick-replies">
+            {message.summary.quick_replies.map((reply, idx) => (
+              <button
+                key={idx}
+                onClick={() => onQuickReplyClick(reply, messageIndex)}
+                className="quick-reply-button"
+              >
+                {reply}
+              </button>
+            ))}
+          </div>
         )}
       </div>
-
-      {/* Expert Details (Collapsible) */}
-      {/* {details && Object.keys(details).length > 0 && (
-        <div className="expert-details mt-4">
-          <div className="collapsible-section">
-            <details>
-              <summary className="font-semibold cursor-pointer p-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors">
-                Technical Assessment
-              </summary>
-              <div className="p-2">
-                <p>{details.technical.assessment}</p>
-                {details.technical.recommendations && (
-                  <ul className="list-disc pl-4 mt-2">
-                    {details.technical.recommendations.map((rec, idx) => (
-                      <li key={idx}>{rec}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </details>
-          </div>
-
-          <div className="collapsible-section mt-2">
-            <details>
-              <summary className="font-semibold cursor-pointer p-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors">
-                Financial Analysis
-              </summary>
-              <div className="p-2">
-                <p>{details.financial.analysis}</p>
-                {details.financial.steps && (
-                  <ul className="list-disc pl-4 mt-2">
-                    {details.financial.steps.map((step, idx) => (
-                      <li key={idx}>{step}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </details>
-          </div>
-
-          <div className="collapsible-section mt-2">
-            <details>
-              <summary className="font-semibold cursor-pointer p-2 bg-gray-100 rounded hover:bg-gray-200 transition-colors">
-                Policy Insights
-              </summary>
-              <div className="p-2">
-                <p>{details.policy.overview}</p>
-                {details.policy.incentives && (
-                  <ul className="list-disc pl-4 mt-2">
-                    {details.policy.incentives.map((incentive, idx) => (
-                      <li key={idx}>{incentive}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </details>
-          </div>
-        </div>
-      )} */}
     </div>
   );
 };
@@ -98,125 +38,161 @@ const ChatWidget = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const hasGreeted = useRef(false);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const toggleChat = () => {
-    setIsOpen(!isOpen);
+  useEffect(() => {
+    if (isOpen && !hasGreeted.current) {
+      sendInitialGreeting();
+      hasGreeted.current = true;
+    }
+  }, [isOpen]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-  
-    const userMessage = input;
-    setInput('');
+  const sendInitialGreeting = async () => {
     setIsLoading(true);
-  
-    setMessages((prev) => [...prev, { text: userMessage, sender: 'user' }]);
-  
     try {
       const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({ message: "", is_initial_greeting: true }),
       });
-  
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-  
+
+      if (!response.ok) throw new Error('Network response was not ok');
+
       const data = await response.json();
-      
-      setMessages((prev) => [...prev, { 
-        ...data,
-        sender: 'bot' 
-      }]);
+      setMessages([{ ...data, sender: 'bot' }]);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleQuickReplyClick = (reply, messageIndex) => {
+    setInput(reply);
+    sendMessage(null, reply);
+
+    // Remove quick replies from the clicked message
+    setMessages((prevMessages) =>
+      prevMessages.map((msg, idx) =>
+        idx === messageIndex
+          ? { ...msg, summary: { ...msg.summary, quick_replies: [] } }
+          : msg
+      )
+    );
+  };
+
+  const sendMessage = async (e, quickReply = null) => {
+    if (e) e.preventDefault();
+    const messageText = quickReply || input;
+    if (!messageText.trim()) return;
+
+    setInput('');
+    setIsLoading(true);
+    setMessages((prev) => [...prev, { text: messageText, sender: 'user' }]);
+
+    try {
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message: messageText }),
+      });
+
+      if (!response.ok) throw new Error('Network response was not ok');
+
+      const data = await response.json();
+      setMessages((prev) => [...prev, { ...data, sender: 'bot' }]);
     } catch (error) {
       console.error('Error:', error);
       setMessages((prev) => [
         ...prev,
-        { 
-          summary: { 
+        {
+          summary: {
             text: 'Sorry, there was an error processing your request.',
-            actions: []
+            quick_replies: [
+              "What solar incentives are available?",
+              "How much could I save with solar?",
+              "Tell me about installation"
+            ]
           },
           details: {},
-          sender: 'bot' 
+          sender: 'bot'
         },
       ]);
     } finally {
       setIsLoading(false);
     }
-  };  
+  };
 
   return (
     <>
-      <div className={`chat-container ${isOpen ? 'visible': 'hidden'}`}>
-        {isOpen && (
-          <div className="chat-content">
-            <div className="chat-header">
-              <div className="flex items-center gap-2">
-                {/* <img src={botAvatar} alt="Bot Avatar" className="w-6 h-6" /> */}
-                <span>Chat Support</span>
-              </div>
-              <button onClick={toggleChat} className={`chat-toggle ${isOpen ? 'open' : ''}`}>
-                {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
-              </button>
-            </div>
-            <div className="messages">
-              {messages.map((message, index) => (
-                <div key={index} className={`message-wrapper ${message.sender}`}>
-                  {message.sender === 'bot' && (
-                    <img src={botAvatar} alt="Bot Avatar" className="avatar" />
-                  )}
-                  <ChatMessage message={message} />
-                </div>
-              ))}
-              {isLoading && (
-                <div className="loading">
-                  <div className="typing-indicator">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-            <form onSubmit={sendMessage} className="input-form">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask me a question about solar energy..."
-                disabled={isLoading}
-                className="flex-1 p-3 border-0 focus:outline-none focus:ring-0"
-              />
-              <button 
-                type="submit" 
-                disabled={isLoading || !input.trim()}
-                className="p-3 text-blue-600 hover:bg-gray-100 disabled:text-gray-400 disabled:hover:bg-transparent transition-colors"
-              >
-                <Send size={20} />
-              </button>
-            </form>
+      <div className={`chat-container ${isOpen ? 'visible' : 'hidden'}`}>
+        <div className="chat-content">
+          <div className="chat-header">
+              <span>Soli</span>
           </div>
-        )}
+          
+          <div className="messages">
+            {messages.map((message, index) => (
+              <div key={index} className={`message-wrapper ${message.sender}`}>
+                {message.sender === 'bot' && (
+                  <img src={botAvatar} alt="Bot Avatar" className="avatar" />
+                )}
+                <ChatMessage 
+                  message={message}
+                  onQuickReplyClick={handleQuickReplyClick}
+                  messageIndex={index}
+                />
+              </div>
+            ))}
+            {isLoading && (
+              <div className="message-wrapper">
+                <img src={botAvatar} alt="Bot Avatar" className="avatar" />
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={sendMessage} className="input-form">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask me about solar energy..."
+              disabled={isLoading}
+            />
+            <button 
+              type="submit" 
+              disabled={isLoading || !input.trim()}
+            >
+              <Send size={20} />
+            </button>
+          </form>
+        </div>
       </div>
+
       <button 
-        onClick={toggleChat} 
-        className={`chat-toggle ${isOpen ? 'hidden' : ''}`}
+        onClick={() => setIsOpen(!isOpen)}
+        className="chat-toggle"
+        aria-label={isOpen ? "Close chat" : "Open chat"}
       >
-        <MessageCircle size={24} />
+        {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
       </button>
     </>
   );

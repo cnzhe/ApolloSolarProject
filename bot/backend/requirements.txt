@@ -3,15 +3,6 @@ flask
 spacy
 python-dotenv
 autogen
-torch           
-transformers  
-scikit-learn    
-pandas 
-numpy     
-nltk            
-matplotlib
-tqdm
-psycopg2
 fastapi
 uvicorn
 pydantic

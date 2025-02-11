@@ -2,6 +2,8 @@ import autogen
 import os
 from dotenv import load_dotenv
 from typing import List, Dict, Any
+from autogen.agentchat.contrib.society_of_mind_agent import SocietyOfMindAgent
+import re
 
 load_dotenv()
 
@@ -19,156 +21,121 @@ class AgentSystem:
     def __init__(self):
         self.config = BOT_CONFIG
         
-        # Create the solar advisor agent
-        self.solar_advisor = autogen.AssistantAgent(
-            name="Solar_Advisor",
-            llm_config=self.config,
-            system_message="""You are a solar energy advisor. Analyze the technical aspects and provide:
-            1. Technical insights specific to user's context (2-3 sentences)
-            2. Key technical recommendations (2-3 bullet points)
-            Format your response as:
-            TECHNICAL INSIGHTS: <assessment>
-            RECOMMENDATIONS:
-            • <recommendation 1>
-            • <recommendation 2>""",
-        )
-        
-        # Create the financial expert agent
-        self.financial_expert = autogen.AssistantAgent(
-            name="Financial_Expert",
-            llm_config=self.config,
-            system_message="""You are a solar energy financial strategist. Provide:
-            1. Financial opportunities unique to user's context (2-3 sentences)
-            2. Key financial recommendations (2-3 bullet points)
-            Format your response as:
-            FINANCIAL ANALYSIS: <analysis>
-            NEXT STEPS:
-            • <step 1>
-            • <step 2>""",
-        )
-        
-        # Create the policy expert agent
-        self.policy_expert = autogen.AssistantAgent(
-            name="Policy_Expert",
-            llm_config=self.config,
-            system_message="""You are a solar policy navigator. Provide:
-            1. Policy insights that complement technical and financial advice (2-3 sentences)
-            2. Available incentives for user's specific scenario (2-3 bullet points)
-            Format your response as:
-            POLICY OVERVIEW: <overview>
-            AVAILABLE INCENTIVES:
-            • <incentive 1>
-            • <incentive 2>""",
-        )
-        
-        # Create the coordinator agent to synthesize responses
-        self.coordinator = autogen.AssistantAgent(
-            name="Coordinator",
-            llm_config=self.config,
-            system_message="""You are a solar solutions coordinator. Your role is to:
-            1. Review insights from all experts
-            2. Create a brief executive summary (2-3 sentences)
-            3. Highlight the most critical action items
-            Format the final response as:
-            SUMMARY: <executive summary>
-            PRIORITY ACTIONS:
-            • <action 1>
-            • <action 2>""",
-        )
-        
-        # Create the user proxy agent
+        # User Proxy Agent - Entry and Final Check
         self.user_proxy = autogen.UserProxyAgent(
             name="user_proxy",
             human_input_mode="NEVER",
-            max_consecutive_auto_reply=5,
-            is_termination_msg=lambda x: isinstance(x, str) and "PRIORITY ACTIONS:" in x,
+            max_consecutive_auto_reply=None,
+            is_termination_msg=lambda x: isinstance(x, str) and "NEXT STEPS:" in x,
+        )
+        
+        # Context Retrieval Agent (Parallel Processing)
+        self.retrieval_agent = autogen.AssistantAgent(
+            name="Retrieval_Agent",
+            llm_config=self.config,
+            system_message="""Retrieve past user interactions and relevant history asynchronously.
+            Scope: Only fetch information related to solar energy installations, incentives, and financing.""",
+        )
+        
+        # User Context Agent
+        self.user_context_agent = autogen.AssistantAgent(
+            name="User_Context_Agent",
+            llm_config=self.config,
+            system_message="""Extract key information needs and context from user messages.
+            Ensure that validated insights are forwarded for aggregation instead of just confirming correctness.""",
+        )
+        
+        # Follow-Up Agent
+        self.follow_up_agent = autogen.AssistantAgent(
+            name="Follow_Up_Agent",
+            llm_config=self.config,
+            system_message="""Review the conversation and suggest 2-3 short follow-up questions that the user might want to explore next.
+            - These questions should be related to the current conversation context.
+            - Structure the response in this format:
+            SUGGESTED QUESTIONS:
+            [1] Question 1
+            [2] Question 2
+            [3] Question 3""",
+        )
+        
+        # Analysis Agent - Ensures full response aggregation and conciseness
+        self.analysis_agent = autogen.AssistantAgent(
+            name="Analysis_Agent",
+            llm_config=self.config,
+            system_message="""Review the conversation and come up with an insightful final response.
+            - The final response must directly answer the user's query.
+            - Exclude information that is not directly related to the user's query.
+            - **No meta-comments or unnecessary explanations**—keep it focused.
+            - Structure the response in a readable way, start with FINAL ANSWER: [answer]""",
         )
 
+    
     async def get_response(self, user_message: str) -> Dict[str, Any]:
         try:
-            # Reset chat history
             if hasattr(self.user_proxy, 'chat_messages'):
                 self.user_proxy.chat_messages.clear()
-
-            # Create group chat
+            
+            # Create pipeline chat
             groupchat = autogen.GroupChat(
                 agents=[
-                    self.solar_advisor,
-                    self.financial_expert,
-                    self.policy_expert,
-                    self.coordinator,
-                    self.user_proxy
+                    self.user_proxy,
+                    # self.user_context_agent,
+                    self.retrieval_agent,
+                    self.analysis_agent,
+                    self.follow_up_agent,
                 ],
                 messages=[],
-                max_round=6
+                speaker_selection_method="auto",
+                max_round=5
             )
             
             manager = autogen.GroupChatManager(groupchat=groupchat)
-
-            # Start the chat
-            await self.user_proxy.a_initiate_chat(
-                manager,
-                message=f"""Query: {user_message}
-                Solar Advisor, Financial Expert, and Policy Expert, please provide your analyses.
-                Coordinator, once all experts have shared insights, synthesize a final response."""
+            society_of_mind_agent = SocietyOfMindAgent(
+                "society_of_mind",
+                chat_manager=manager,
             )
-
-            # Get chat history
-            chat_history = self.user_proxy.chat_messages.get(manager, [])
-            if not chat_history:
-                return {
-                    "summary": "No response generated.",
-                    "details": {}
-                }
-
-            # Process the responses
-            expert_insights = {
-                "technical": {},
-                "financial": {},
-                "policy": {}
-            }
             
-            final_summary = ""
-            priority_actions = []
+            await self.user_proxy.a_initiate_chat(
+                society_of_mind_agent,
+                message=f"""User Query: {user_message}
+                Process query dynamically through retrieval, validation, and analysis."""
+            )
+            
+            chat_history = self.user_proxy.chat_messages.get(manager, [])
+            final_message = chat_history[-2].get("content", "") if chat_history else "I couldn't process your request."
+            follow_up_questions = chat_history[-1].get("content", "") if chat_history else []
+            
+            if 'SUGGESTED QUESTIONS:' in follow_up_questions:
+                # Extract everything after 'SUGGESTED QUESTIONS:'
+                suggested_section = follow_up_questions.split('SUGGESTED QUESTIONS:')[1].strip()
+                suggested_questions = re.findall(r'\[\d+\] (.+)', suggested_section)
+            else:
+                # Default fallback questions
+                suggested_questions = [
+                    "Tell me more about financing options",
+                    "What's the next step in the process?",
+                    "How long does it take to install solar panels?"
+                ]
 
-            for message in chat_history:
-                content = message.get("content", "")
-                
-                # Extract expert insights
-                if "TECHNICAL INSIGHTS:" in content:
-                    expert_insights["technical"]["assessment"] = content.split("TECHNICAL INSIGHTS:")[1].split("RECOMMENDATIONS:")[0].strip()
-                    expert_insights["technical"]["recommendations"] = [
-                        rec.strip() for rec in content.split("RECOMMENDATIONS:")[1].strip().split("•") if rec.strip()
-                    ]
-                elif "FINANCIAL ANALYSIS:" in content:
-                    expert_insights["financial"]["analysis"] = content.split("FINANCIAL ANALYSIS:")[1].split("NEXT STEPS:")[0].strip()
-                    expert_insights["financial"]["steps"] = [
-                        step.strip() for step in content.split("NEXT STEPS:")[1].strip().split("•") if step.strip()
-                    ]
-                elif "POLICY OVERVIEW:" in content:
-                    expert_insights["policy"]["overview"] = content.split("POLICY OVERVIEW:")[1].split("AVAILABLE INCENTIVES:")[0].strip()
-                    expert_insights["policy"]["incentives"] = [
-                        inc.strip() for inc in content.split("AVAILABLE INCENTIVES:")[1].strip().split("•") if inc.strip()
-                    ]
-                elif "SUMMARY:" in content:
-                    final_summary = content.split("SUMMARY:")[1].split("PRIORITY ACTIONS:")[0].strip()
-                    priority_actions = [
-                        action.strip() for action in content.split("PRIORITY ACTIONS:")[1].strip().split("•") if action.strip()
-                    ]
-
-            final_summary = final_summary.replace("**", "").strip()
-            priority_actions = [action.replace("**", "").strip() for action in priority_actions]
-
+            print(final_message, suggested_questions)
+            
             return {
                 "summary": {
-                    "text": final_summary,
-                    "actions": priority_actions
+                    "text": final_message.split('FINAL ANSWER:')[1],
+                    "quick_replies": suggested_questions
                 },
-                "details": expert_insights
+                "details": {}
             }
-
+        
         except Exception as e:
             return {
-                "summary": f"An error occurred: {str(e)}",
+                "summary": {
+                    "text": f"An error occurred: {str(e)}",
+                    "quick_replies": [
+                        "What solar incentives are available?",
+                        "How much could I save with solar?",
+                        "Tell me about installation"
+                    ]
+                },
                 "details": {}
             }
