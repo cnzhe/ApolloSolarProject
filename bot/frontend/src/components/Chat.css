@@ -23,18 +23,31 @@
 
 .chat-header {
   padding: 20px;
-  background: #004ba0;
+  background: #00509D;
   color: white;
   font-size: 20px;
-  font-weight: 500;
+  font-weight: 600;
   display: flex;
   align-items: center;
+  margin-bottom: 8px;
+}
+
+.bot-header {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+}
+
+.bot-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
 }
 
 .avatar {
-  width: 28px;
-  height: 28px;
-  color: #666;
+  width: 24px;
+  height: 24px;
 }
 
 .messages {
@@ -43,7 +56,7 @@
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
   background: white;
 }
 
@@ -57,28 +70,36 @@
 
 .quick-reply-button {
   padding: 8px 12px;
-  background-color: #f0f2f5;
-  border: 1px solid #e5e7eb;
+  background-color: #fff;
+  border: 1.5px solid #e5e7eb;
+  /* box-shadow: 0 0 4px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.14); */
   border-radius: 8px;
   font-size: 16px;
-  color: #004ba0;
+  color: #00509D;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
   width: fit-content;
   min-width: 200px;
   margin-left: 25px;
-  margin-right: -35px;
 }
 
 .quick-reply-button:hover {
-  background-color: #e5e7eb;
+  border: 1.5px solid #00509D;
+  border-radius: 8px;
 }
 
 .message-wrapper {
   display: flex;
   gap: 12px;
   align-items: flex-start;
+}
+
+.message-wrapper.bot {
+  flex-direction: column;
+  justify-content: flex-start;
+  padding-left: 5px;
+  gap: 6px;
 }
 
 .message-wrapper.user {
@@ -88,11 +109,11 @@
 .message {
   padding: 8px 12px;
   border-radius: 8px;
-  max-width: 80%;
+  max-width: 90%;
 }
 
 .message.user {
-  background: #004ba0;
+  background: #00509D;
   color: white;
   margin-left: auto;
 }
@@ -104,16 +125,22 @@
 }
 
 .summary-section {
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
-.summary-section p {
-  margin-bottom: 8px;
+.summary-section ul, 
+.summary-section ol {
+  padding-left: 5px;
+  margin: 0;
+  list-style-position: inside;
 }
 
-.summary-section ul {
-  margin-top: 8px;
-  margin-bottom: 8px;
+.summary-section li {
+  text-align: left;
+  word-wrap: break-word;
 }
 
 .input-form {
@@ -147,7 +174,7 @@
   width: 56px;
   height: 56px;
   border-radius: 28px;
-  background: #004ba0;
+  background: #00509D;
   color: white;
   border: none;
   cursor: pointer;
@@ -176,7 +203,7 @@
 .typing-indicator span {
   width: 8px;
   height: 8px;
-  background: #004ba0;
+  background: #00509D;
   border-radius: 50%;
   animation: bounce 1.4s infinite ease-in-out;
 }
@@ -191,7 +218,7 @@
 
 /* Styles for the collapsible sections */
 .collapsible-section details {
-  border: 1px solid #004ba0;
+  border: 1px solid #00509D;
   border-radius: 6px;
   margin-bottom: 8px;
   padding: 4px;
@@ -212,14 +239,4 @@
 
 .collapsible-section details[open] summary::after {
   content: '-';
-}
-
-ul {
-  list-style-type: disc;
-  padding-left: 0;
-  margin-left: 1em;
-}
-
-ul li {
-  margin-left: 0.5em;
 }

@@ -4,7 +4,7 @@ import { MessageCircle, Send, X } from 'lucide-react';
 import './Chat.css';
 import botAvatar from '../assets/launcher-logo.png';
 
-const ChatMessage = ({ message, onQuickReplyClick, messageIndex }) => {
+const ChatMessage = ({ message }) => {
   if (message.sender === 'user') {
     return <div className="message user">{message.text}</div>;
   }
@@ -12,25 +12,12 @@ const ChatMessage = ({ message, onQuickReplyClick, messageIndex }) => {
   return (
     <div className="message bot">
       <div className="summary-section">
-        <ReactMarkdown>{message.summary.text}</ReactMarkdown>
-
-        {message.summary.quick_replies?.length > 0 && (
-          <div className="quick-replies">
-            {message.summary.quick_replies.map((reply, idx) => (
-              <button
-                key={idx}
-                onClick={() => onQuickReplyClick(reply, messageIndex)}
-                className="quick-reply-button"
-              >
-                {reply}
-              </button>
-            ))}
-          </div>
-        )}
+        {message.summary?.text && <ReactMarkdown>{message.summary.text}</ReactMarkdown>}
       </div>
     </div>
   );
 };
+
 
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -147,18 +134,36 @@ const ChatWidget = () => {
             {messages.map((message, index) => (
               <div key={index} className={`message-wrapper ${message.sender}`}>
                 {message.sender === 'bot' && (
-                  <img src={botAvatar} alt="Bot Avatar" className="avatar" />
+                 <div className="bot-header">
+                 <img src={botAvatar} alt="Bot Avatar" className="avatar" />
+                 <span className="bot-name">Soli</span>
+               </div>
                 )}
                 <ChatMessage 
                   message={message}
-                  onQuickReplyClick={handleQuickReplyClick}
                   messageIndex={index}
                 />
+                {message.sender === 'bot' && message.summary?.quick_replies?.length > 0 && (
+                  <div className="quick-replies">
+                    {message.summary.quick_replies.map((reply, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleQuickReplyClick(reply, index)}
+                        className="quick-reply-button"
+                      >
+                        {reply}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
             {isLoading && (
               <div className="message-wrapper">
-                <img src={botAvatar} alt="Bot Avatar" className="avatar" />
+                <div className="bot-header">
+                  <img src={botAvatar} alt="Bot Avatar" className="avatar" />
+                  <span className="bot-name">Soli</span>
+                </div>
                 <div className="typing-indicator">
                   <span></span>
                   <span></span>
